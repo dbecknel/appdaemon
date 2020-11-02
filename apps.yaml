@@ -1,0 +1,7 @@
+nest:
+  module: nest
+  class: NESTAPI
+  nest_refresh: !secret nest_refresh
+  nest_client_id: !secret nest_client_id
+  nest_client_secret: !secret nest_client_secret
+  nest_project_id: !secret nest_project_id
