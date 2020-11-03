@@ -57,12 +57,13 @@ class NESTAPI(hass.Hass):
     device["attributes"]["friendly_name"]=nest_device["parentRelations"][0]["displayName"] + " Nest Thermostat"
     device["nest_id"] = nest_device["name"]
     device["attributes"]["entity_id"]="climate." + device["attributes"]["friendly_name"].lower().replace(" ", "_")
+    device["attributes"]["unit_of_measure"]=nest_device["traits"]["sdm.devices.traits.Settings"]["temperatureScale"].lower()
     device["attributes"]["hvac_mode"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["mode"].lower().replace("heatcool", "heat_cool")
     device["attributes"]["preset_mode"]=device["attributes"]["hvac_mode"]
     device["attributes"]["hvac_modes"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["availableModes"]
     device["attributes"]["hvac_modes"]=[mode.lower().replace("heatcool", "heat_cool") for mode in device["attributes"]["hvac_modes"]]
     device["attributes"]["preset_modes"]=device["attributes"]["hvac_modes"]
-    device["attributes"]["current_temperature"]=round(nest_device["traits"]["sdm.devices.traits.Temperature"]["ambientTemperatureCelsius"]*9/5+32, 1)
+    device["attributes"]["current_temperature"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.Temperature"]["ambientTemperatureCelsius"], device["attributes"]["unit_of_measure"])
     device["attributes"]["current_humidty"]=nest_device["traits"]["sdm.devices.traits.Humidity"]["ambientHumidityPercent"]
     device["attributes"]["hvac_action"]=nest_device["traits"]["sdm.devices.traits.ThermostatHvac"]["status"].lower()
     device["attributes"]["supported_features"]=17
@@ -72,17 +73,33 @@ class NESTAPI(hass.Hass):
       device["attributes"]["supported_features"]+=2
     if device["attributes"]["hvac_mode"] == "heat":
       device["state"]="on"
-      device["attributes"]["temperature"]=round(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["heatCelsius"]*9/5+32, 1)
+      device["attributes"]["temperature"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["heatCelsius"], device["attributes"]["unit_of_measure"])
     elif device["attributes"]["hvac_mode"] == "cool":
       device["state"]="on"
-      device["attributes"]["temperature"]=round(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["coolCelsius"]*9/5+32, 1)
+      device["attributes"]["temperature"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["coolCelsius"], device["attributes"]["unit_of_measure"])
     elif device["attributes"]["hvac_mode"] == "heat_cool":
       device["state"]="on"
-      device["attributes"]["target_temp_low"]=round(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["heatCelsius"]*9/5+32, 1)
-      device["attributes"]["target_temp_high"]=round(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["coolCelsius"]*9/5+32, 1)
+      device["attributes"]["target_temp_low"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["heatCelsius"], device["attributes"]["unit_of_measure"])
+      device["attributes"]["target_temp_high"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["coolCelsius"], device["attributes"]["unit_of_measure"])
     else:
       device["state"]="off"
     return device
+  
+  def convert_temp_up(self, temp, unit_of_measure):
+    value=0.0
+    if unit_of_measure == "fahrenheit":
+      value=round(temp*9/5+32, 1)
+    else:
+      value=round(temp, 1)
+    return value
+    
+  def convert_temp_down(self, temp, unit_of_measure):
+    value=0.0
+    if unit_of_measure == "fahrenheit":
+      value=round((temp-32)*5/9, 1)
+    else:
+      value=round(temp, 1)
+    return value
   
   def call_service(self,event_name,data, kwargs):
     if data["domain"]!="climate":
@@ -143,8 +160,8 @@ class NESTAPI(hass.Hass):
       payload = json.dumps({
         "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
         "params" : {
-          "coolCelsius" : round((data["service_data"]["target_temp_high"]-32)*5/9, 2),
-          "heatCelsius" : round((data["service_data"]["target_temp_low"]-32)*5/9, 2)
+          "coolCelsius" : self.convert_temp_down(data["service_data"]["target_temp_high"], self.devices[id]["attributes"]["unit_of_measure"]),
+          "heatCelsius" : self.convert_temp_down(data["service_data"]["target_temp_low"], self.devices[id]["attributes"]["unit_of_measure"])
           }
         }, indent=4)
       self.post_api(self.devices[id], payload)
@@ -152,7 +169,7 @@ class NESTAPI(hass.Hass):
       payload = json.dumps({
         "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
         "params" : {
-          "coolCelsius" : round((data["service_data"]["temperature"]-32)*5/9, 2)
+          "coolCelsius" : self.convert_temp_down(data["service_data"]["temperature"], self.devices[id]["attributes"]["unit_of_measure"])
           }
         }, indent=4)
       self.post_api(self.devices[id], payload)
@@ -160,7 +177,7 @@ class NESTAPI(hass.Hass):
       payload = json.dumps({
         "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
         "params" : {
-          "heatCelsius" : round((data["service_data"]["temperature"]-32)*5/9, 2)
+          "heatCelsius" : self.convert_temp_down(data["service_data"]["temperature"], self.devices[id]["attributes"]["unit_of_measure"])
           }
         }, indent=4)
       self.post_api(self.devices[id], payload)
