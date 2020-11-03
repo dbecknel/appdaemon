@@ -54,9 +54,9 @@ class NESTAPI(hass.Hass):
   def parseThermostat(self, nest_device):
     device = {}
     device["attributes"]={}
-    device["attributes"]["friendly_name"]=nest_device["parentRelations"][0]["displayName"] + " Nest Thermostat"
+    device["attributes"]["friendly_name"]=nest_device["parentRelations"][0]["displayName"] + " Nest Thermostat".replace("'", "")
     device["nest_id"] = nest_device["name"]
-    device["attributes"]["entity_id"]="climate." + device["attributes"]["friendly_name"].lower().replace(" ", "_")
+    device["attributes"]["entity_id"]="climate." + device["attributes"]["friendly_name"].lower().replace(" ", "_").replace("-", "_")
     device["attributes"]["unit_of_measure"]=nest_device["traits"]["sdm.devices.traits.Settings"]["temperatureScale"].lower()
     device["attributes"]["hvac_mode"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["mode"].lower().replace("heatcool", "heat_cool")
     device["attributes"]["preset_mode"]=device["attributes"]["hvac_mode"]
