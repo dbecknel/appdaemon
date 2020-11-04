@@ -82,8 +82,8 @@ class NESTAPI(hass.Hass):
       device["attributes"]["preset_mode"]="eco"
     else:
       device["attributes"]["preset_mode"]=""
-    device["attributes"]["eco_min_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["heatCelsius"], device["attributes"]["unit_of_measure"])
-    device["attributes"]["eco_max_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["coolCelsius"], device["attributes"]["unit_of_measure"])
+    #device["attributes"]["eco_min_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["heatCelsius"], device["attributes"]["unit_of_measure"])
+    #device["attributes"]["eco_max_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["coolCelsius"], device["attributes"]["unit_of_measure"])
     device["attributes"]["hvac_modes"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["availableModes"]
     device["attributes"]["hvac_modes"]=[mode.lower().replace("heatcool", "heat_cool") for mode in device["attributes"]["hvac_modes"]]
     device["attributes"]["preset_modes"]=["eco"]
@@ -95,7 +95,11 @@ class NESTAPI(hass.Hass):
       device["attributes"]["hvac_action"]="idle"
     if "heat_cool" in device["attributes"]["hvac_modes"]:
       device["attributes"]["supported_features"]+=2
-    if device["attributes"]["hvac_mode"] == "heat":
+    if device["attributes"]["preset_mode"]=="eco":
+      device["state"]="on"
+      device["attributes"]["target_temp_low"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["heatCelsius"], device["attributes"]["unit_of_measure"])
+      device["attributes"]["target_temp_high"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["coolCelsius"], device["attributes"]["unit_of_measure"])
+    elif device["attributes"]["hvac_mode"] == "heat":
       device["state"]="on"
       device["attributes"]["temperature"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["heatCelsius"], device["attributes"]["unit_of_measure"])
     elif device["attributes"]["hvac_mode"] == "cool":
@@ -107,7 +111,6 @@ class NESTAPI(hass.Hass):
       device["attributes"]["target_temp_high"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["coolCelsius"], device["attributes"]["unit_of_measure"])
     else:
       device["state"]="off"
-    
     return device
   
   def convert_temp_up(self, temp, unit_of_measure):
@@ -155,6 +158,7 @@ class NESTAPI(hass.Hass):
   
   def set_preset_mode(self, data):
     self.log("set_preset_mode")
+    id = data["service_data"]["entity_id"]
     payload={}
     if data["service_data"]["preset_mode"].lower() == "eco":
       payload = json.dumps({
@@ -169,8 +173,10 @@ class NESTAPI(hass.Hass):
     
   def set_fan_mode(self, data):
     self.log("set_fan_mode")
+    id = data["service_data"]["entity_id"]
     payload={}
     if data["service_data"]["fan_mode"].lower() == "off":
+      
       payload = json.dumps({
         'command' : 'sdm.devices.commands.Fan.SetTimer',
         'params' : {
