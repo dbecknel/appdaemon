@@ -112,7 +112,6 @@ class NESTAPI(hass.Hass):
       self.turn_on(data)
     elif data["service"]=="turn_off":
       self.turn_off(data)
-    self.log(data)
   
   def set_hvac_mode(self, data):
     self.log("set_hvac_mode")
@@ -160,8 +159,8 @@ class NESTAPI(hass.Hass):
       payload = json.dumps({
         "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
         "params" : {
-          "coolCelsius" : self.convert_temp_down(data["service_data"]["target_temp_high"], self.devices[id]["attributes"]["unit_of_measure"]),
-          "heatCelsius" : self.convert_temp_down(data["service_data"]["target_temp_low"], self.devices[id]["attributes"]["unit_of_measure"])
+          "coolCelsius" : self.convert_temp_down(float(data["service_data"]["target_temp_high"]), self.devices[id]["attributes"]["unit_of_measure"]),
+          "heatCelsius" : self.convert_temp_down(flaot(data["service_data"]["target_temp_low"]), self.devices[id]["attributes"]["unit_of_measure"])
           }
         }, indent=4)
       self.post_api(self.devices[id], payload)
@@ -169,7 +168,7 @@ class NESTAPI(hass.Hass):
       payload = json.dumps({
         "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
         "params" : {
-          "coolCelsius" : self.convert_temp_down(data["service_data"]["temperature"], self.devices[id]["attributes"]["unit_of_measure"])
+          "coolCelsius" : self.convert_temp_down(float(data["service_data"]["temperature"]), self.devices[id]["attributes"]["unit_of_measure"])
           }
         }, indent=4)
       self.post_api(self.devices[id], payload)
@@ -177,7 +176,7 @@ class NESTAPI(hass.Hass):
       payload = json.dumps({
         "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
         "params" : {
-          "heatCelsius" : self.convert_temp_down(data["service_data"]["temperature"], self.devices[id]["attributes"]["unit_of_measure"])
+          "heatCelsius" : self.convert_temp_down(float(data["service_data"]["temperature"]), self.devices[id]["attributes"]["unit_of_measure"])
           }
         }, indent=4)
       self.post_api(self.devices[id], payload)
