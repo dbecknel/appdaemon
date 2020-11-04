@@ -24,6 +24,10 @@ class NESTAPI(hass.Hass):
     self.run_every(self.get_token, "now+3500", 3500)
     self.listen_event(self.call_service, event = "call_service")
     
+  def events(self,event_name,data, kwargs):
+    if "climate" in data["entity_id"]:
+      self.log(event_name)
+      self.log(data)
   
   def get_token(self, kwargs):
     req_headers={}
@@ -58,6 +62,12 @@ class NESTAPI(hass.Hass):
     device["nest_id"] = nest_device["name"]
     device["attributes"]["entity_id"]="climate." + device["attributes"]["friendly_name"].lower().replace(" ", "_").replace("-", "_")
     device["attributes"]["unit_of_measure"]=nest_device["traits"]["sdm.devices.traits.Settings"]["temperatureScale"].lower()
+    if device["attributes"]["unit_of_measure"] == "fahrenheit":
+      device["attributes"]["min_temp"]=55
+      device["attributes"]["max_temp"]=95
+    else:
+      device["attributes"]["min_temp"]=12
+      device["attributes"]["max_temp"]=35
     device["attributes"]["hvac_mode"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["mode"].lower().replace("heatcool", "heat_cool")
     device["attributes"]["preset_mode"]=device["attributes"]["hvac_mode"]
     device["attributes"]["hvac_modes"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["availableModes"]
