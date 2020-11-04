@@ -64,12 +64,12 @@ class NESTAPI(hass.Hass):
     device["attributes"]["entity_id"]="climate." + device["attributes"]["friendly_name"].lower().replace(" ", "_").replace("-", "_")
     device["attributes"]["unit_of_measure"]=nest_device["traits"]["sdm.devices.traits.Settings"]["temperatureScale"].lower()
     if device["attributes"]["unit_of_measure"] == "fahrenheit":
-      device["attributes"]["min_temp"]=55
-      device["attributes"]["max_temp"]=95
+      device["attributes"]["min_temp"]=45
+      device["attributes"]["max_temp"]=90
       device["attributes"]["unit_of_measure"] = u"\N{DEGREE SIGN}"+"F"
     else:
-      device["attributes"]["min_temp"]=12
-      device["attributes"]["max_temp"]=35
+      device["attributes"]["min_temp"]=7
+      device["attributes"]["max_temp"]=32
       device["attributes"]["unit_of_measure"] = u"\N{DEGREE SIGN}"+"C"
     device["attributes"]["precision"]=0.1
     device["attributes"]["hvac_mode"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["mode"].lower().replace("heatcool", "heat_cool")
