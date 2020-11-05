@@ -1,4 +1,7 @@
 # appdaemon
+
+# NESTAPI - nest.py
+
 Google API for NEST Apps for Appdaemon on HASSIO
 
 nest.py is my intial cut at getting my Home Assistant to work with the new Google API for Nest Thermostats.
@@ -13,8 +16,18 @@ I am NOT a programmer, but any means.  There are most likely errors and better w
 
 I have included the apps.yaml file which includes the extract needed to run this file.  You will need to update your secrets.yaml file with the appropriate information.
 
-This works for an arbitrary number of thermostats and sets up the devices at runtime.  I couldn't manage to get the lovelace visualization to set the temperature.  I imagine there to be some magic under the hood of the climate class that I can't access from appdaemon.  Services firing manually or from automations should work though.
+NEST uses celsius under the hood, but has a trait that stipulates if your thermostats are set for Fahrenheit or Celsius.  The script is now aware of that election and computes the correct temperatures for display in HASS.  I originally forced it all to Fahrenheit...
 
-I didn't bother with Presets or ECO, but would be easy enough to add.
+This works for an arbitrary number of thermostats and sets up the devices at runtime.  I fixed the information needed to get the lovelace visualization to set the temperature.  The issue was the need to set a min and max temp that is used by lovelace to setup the input_number.  Services firing manually or from automations have now been tested, or at least most of them.
+
+ECO and fan only are now supported and enabled.  The only preset mode is ECO which relies on the eco temperatures setup in the NEST app.
 
 Happy automating!!
+
+# MerakiAPI - meraki.py
+
+I put this together that I can switch in home assistant to toggle network clients on my Meraki between two group policies.  This is still very much a prototype, but there is not an integration to this API already built, so I figured I would take a whirl.
+
+the group policy ID's are static at this point, but would be trivial to paramterize them if their was any interest.
+
+Switches look like: "switch.meraki_<meraki_client_id>" and the attributes are populated with relatively useful information.  The friendly name uses the information in the client description field and mac address to ensure some level of uniqueness.
