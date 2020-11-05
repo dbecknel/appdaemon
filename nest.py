@@ -198,6 +198,7 @@ class NESTAPI(hass.Hass):
     
   def turn_off(self, data):
     self.log("turn_off")
+    id = data["service_data"]["entity_id"]
     payload = json.dumps({
       'command' : 'sdm.devices.commands.ThermostatMode.SetMode',
       'params' : {
