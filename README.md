@@ -12,7 +12,7 @@ You will need to carefully follow the instruction on the above link to register 
 
 Best to have Postman downloaded to help and to test fire API calls to be sure your data artifacts are correct.
 
-I am NOT a programmer, but any means.  There are most likely errors and better ways to factor the code and such.  I am open to feedback.  Hopefully, HASS will integrate the Google API for NEST directly in the coming months.
+I am NOT a programmer, but any means.  There are most likely errors and better ways to factor the code and such.  I am open to feedback.  Hopefully, HASS will integrate the Google API for NEST directly in the coming months.  However, efforts thus far are limited to sensors with no control of the actual thermostat.  That will change soon, I know.  I am not one to be known for patience though.
 
 I have included the apps.yaml file which includes the extract needed to run this file.  You will need to update your secrets.yaml file with the appropriate information.
 
