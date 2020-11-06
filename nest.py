@@ -63,6 +63,7 @@ class NESTAPI(hass.Hass):
     device["nest_id"] = nest_device["name"]
     device["attributes"]["entity_id"]="climate." + device["attributes"]["friendly_name"].lower().replace(" ", "_").replace("-", "_")
     device["attributes"]["unit_of_measure"]=nest_device["traits"]["sdm.devices.traits.Settings"]["temperatureScale"].lower()
+    device["attributes"]["supported_features"]=1
     if device["attributes"]["unit_of_measure"] == "fahrenheit":
       device["attributes"]["min_temp"]=45
       device["attributes"]["max_temp"]=90
@@ -73,24 +74,32 @@ class NESTAPI(hass.Hass):
       device["attributes"]["unit_of_measure"] = u"\N{DEGREE SIGN}"+"C"
     device["attributes"]["precision"]=0.1
     device["attributes"]["hvac_mode"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["mode"].lower().replace("heatcool", "heat_cool")
-    device["attributes"]["fan_mode"]=nest_device["traits"]["sdm.devices.traits.Fan"]["timerMode"].lower()
+    try:
+      device["attributes"]["fan_mode"]=nest_device["traits"]["sdm.devices.traits.Fan"]["timerMode"].lower()
+      device["attributes"]["supported_features"]+=8
+    except (Exception) as e:
+      device["attributes"]["fan_mode"]="none"
     if device["attributes"]["fan_mode"] == "on":
       device["attributes"]["fan_timer_out"]=nest_device["traits"]["sdm.devices.traits.Fan"]["timerTimeout"].lower()
     else:
       device["attributes"]["fan_timer_out"]="off"
-    if nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["mode"] == "MANUAL_ECO":
-      device["attributes"]["preset_mode"]="eco"
-    else:
+    try:
+      if nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["mode"] == "MANUAL_ECO":
+        device["attributes"]["preset_mode"]="eco"
+      else:
+        device["attributes"]["preset_mode"]=""
+        device["attributes"]["preset_modes"]=["eco"]
+        device["attributes"]["supported_features"]+=16
+    except (Exception) as e:
       device["attributes"]["preset_mode"]=""
+      device["attributes"]["preset_modes"]=""
     #device["attributes"]["eco_min_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["heatCelsius"], device["attributes"]["unit_of_measure"])
     #device["attributes"]["eco_max_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["coolCelsius"], device["attributes"]["unit_of_measure"])
     device["attributes"]["hvac_modes"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["availableModes"]
     device["attributes"]["hvac_modes"]=[mode.lower().replace("heatcool", "heat_cool") for mode in device["attributes"]["hvac_modes"]]
-    device["attributes"]["preset_modes"]=["eco"]
     device["attributes"]["current_temperature"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.Temperature"]["ambientTemperatureCelsius"], device["attributes"]["unit_of_measure"])
     device["attributes"]["current_humidty"]=nest_device["traits"]["sdm.devices.traits.Humidity"]["ambientHumidityPercent"]
     device["attributes"]["hvac_action"]=nest_device["traits"]["sdm.devices.traits.ThermostatHvac"]["status"].lower()
-    device["attributes"]["supported_features"]=25
     if device["attributes"]["hvac_action"] == "off":
       device["attributes"]["hvac_action"]="idle"
     if "heat_cool" in device["attributes"]["hvac_modes"]:
@@ -147,109 +156,131 @@ class NESTAPI(hass.Hass):
   
   def set_hvac_mode(self, data):
     self.log("set_hvac_mode")
-    id = data["service_data"]["entity_id"]
-    payload = json.dumps({
-      'command' : 'sdm.devices.commands.ThermostatMode.SetMode',
-      'params' : {
-        'mode' : data["service_data"]["hvac_mode"].replace("heat_cool", "heatcool").upper()
-        }
-      }, indent=4)
-    self.post_api(self.devices[id], payload)
+    payload={}
+    if "entity_id" not in data["service_data"]:
+      return
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
+    for id in data["service_data"]["entity_id"]:
+      if (not self.devices[id]["attributes"]["supported_features"] & 2) and data["service_data"]["hvac_mode"] == "heat_cool":
+        continue
+      payload = json.dumps({
+        'command' : 'sdm.devices.commands.ThermostatMode.SetMode',
+        'params' : {
+          'mode' : data["service_data"]["hvac_mode"].replace("heat_cool", "heatcool").upper()
+          }
+        }, indent=4)
+      self.post_api(self.devices[id], payload)
   
   def set_preset_mode(self, data):
     self.log("set_preset_mode")
-    id = data["service_data"]["entity_id"]
     payload={}
-    if data["service_data"]["preset_mode"].lower() == "eco":
-      payload = json.dumps({
-        'command' : 'sdm.devices.commands.ThermostatEco.SetMode',
-        'params' : {
-          'mode' : 'MANUAL_ECO'
-          }
-        }, indent=4)
-    else:
+    if "entity_id" not in data["service_data"]:
       return
-    self.post_api(self.devices[id], payload)
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
+    for id in data["service_data"]["entity_id"]:
+      if not self.devices[id]["attributes"]["supported_features"] & 16:
+        continue
+      if data["service_data"]["preset_mode"].lower() == "eco":
+        payload = json.dumps({
+          'command' : 'sdm.devices.commands.ThermostatEco.SetMode',
+          'params' : {
+            'mode' : 'MANUAL_ECO'
+            }
+          }, indent=4)
+      else:
+        continue
+      self.post_api(self.devices[id], payload)
     
   def set_fan_mode(self, data):
     self.log("set_fan_mode")
-    id = data["service_data"]["entity_id"]
     payload={}
-    if data["service_data"]["fan_mode"].lower() == "off":
-      
-      payload = json.dumps({
-        'command' : 'sdm.devices.commands.Fan.SetTimer',
-        'params' : {
-          'timerMode' : 'OFF'
-          }
-        }, indent=4)
-    else:
-      payload = json.dumps({
-        'command' : 'sdm.devices.commands.Fan.SetTimer',
-        'params' : {
-          'timerMode' : 'ON',
-          'duration' : '900s'
-          }
-        }, indent=4)
-    self.post_api(self.devices[id], payload)
+    if "entity_id" not in data["service_data"]:
+      return
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
+    for id in data["service_data"]["entity_id"]:
+      if not self.devices[id]["attributes"]["supported_features"] & 8:
+        continue
+      if data["service_data"]["fan_mode"].lower() == "off":
+        payload = json.dumps({
+          'command' : 'sdm.devices.commands.Fan.SetTimer',
+          'params' : {
+            'timerMode' : 'OFF'
+            }
+          }, indent=4)
+      else:
+        payload = json.dumps({
+          'command' : 'sdm.devices.commands.Fan.SetTimer',
+          'params' : {
+            'timerMode' : 'ON',
+            'duration' : '900s'
+            }
+          }, indent=4)
+      self.post_api(self.devices[id], payload)
     
   def turn_on(self, data):
     self.log("turn_on")
     
   def turn_off(self, data):
     self.log("turn_off")
-    id = data["service_data"]["entity_id"]
+    if "entity_id" not in data["service_data"]:
+      return
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
     payload = json.dumps({
       'command' : 'sdm.devices.commands.ThermostatMode.SetMode',
       'params' : {
         'mode' : 'OFF'
         }
       }, indent=4)
-    self.post_api(self.devices[id], payload)
+    for id in data["service_data"]["entity_id"]:
+      self.post_api(self.devices[id], payload)
     
   def set_temperature(self, data):
     self.log("set_temperature")
-    payload={}
-    id=""
     if "entity_id" not in data["service_data"]:
       return
-    else:
-      id = data["service_data"]["entity_id"]
-    if "hvac_mode" in data["service_data"]:
-      if (data["service_data"]["hvac_mode"] == "heat" or data["service_data"]["hvac_mode"] == "cool") and "temperature" not in data["service_data"]:
-        return
-      elif data["service_data"]["hvac_mode"] == "heat_cool" and ("target_temp_high" not in data["service_data"] or "target_temp_low" not in data["service_data"]):
-        return
-      elif data["service_data"]["hvac_mode"] == "off":
-        self.turn_off(data)
-        return
-      else:
-        self.set_hvac_mode(data)
-    if self.devices[id]["attributes"]["hvac_mode"] == "heat_cool":
-      payload = json.dumps({
-        "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
-        "params" : {
-          "coolCelsius" : self.convert_temp_down(float(data["service_data"]["target_temp_high"]), self.devices[id]["attributes"]["unit_of_measure"]),
-          "heatCelsius" : self.convert_temp_down(flaot(data["service_data"]["target_temp_low"]), self.devices[id]["attributes"]["unit_of_measure"])
-          }
-        }, indent=4)
-      self.post_api(self.devices[id], payload)
-    elif self.devices[id]["attributes"]["hvac_mode"] == "cool":
-      payload = json.dumps({
-        "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
-        "params" : {
-          "coolCelsius" : self.convert_temp_down(float(data["service_data"]["temperature"]), self.devices[id]["attributes"]["unit_of_measure"])
-          }
-        }, indent=4)
-      self.post_api(self.devices[id], payload)
-    elif self.devices[id]["attributes"]["hvac_mode"] == "heat":
-      payload = json.dumps({
-        "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
-        "params" : {
-          "heatCelsius" : self.convert_temp_down(float(data["service_data"]["temperature"]), self.devices[id]["attributes"]["unit_of_measure"])
-          }
-        }, indent=4)
-      self.post_api(self.devices[id], payload)
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
+    payload={}
+    for id in data["service_data"]["entity_id"]:
+      if "hvac_mode" in data["service_data"]:
+        if (data["service_data"]["hvac_mode"] == "heat" or data["service_data"]["hvac_mode"] == "cool") and "temperature" not in data["service_data"]:
+          continue
+        elif data["service_data"]["hvac_mode"] == "heat_cool" and ("target_temp_high" not in data["service_data"] or "target_temp_low" not in data["service_data"]):
+          continue
+        elif data["service_data"]["hvac_mode"] == "off":
+          self.turn_off(data)
+          continue
+        else:
+          self.set_hvac_mode(data)
+      if self.devices[id]["attributes"]["hvac_mode"] == "heat_cool":
+        payload = json.dumps({
+          "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
+          "params" : {
+            "coolCelsius" : self.convert_temp_down(float(data["service_data"]["target_temp_high"]), self.devices[id]["attributes"]["unit_of_measure"]),
+            "heatCelsius" : self.convert_temp_down(flaot(data["service_data"]["target_temp_low"]), self.devices[id]["attributes"]["unit_of_measure"])
+            }
+          }, indent=4)
+        self.post_api(self.devices[id], payload)
+      elif self.devices[id]["attributes"]["hvac_mode"] == "cool":
+        payload = json.dumps({
+          "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
+          "params" : {
+            "coolCelsius" : self.convert_temp_down(float(data["service_data"]["temperature"]), self.devices[id]["attributes"]["unit_of_measure"])
+            }
+          }, indent=4)
+        self.post_api(self.devices[id], payload)
+      elif self.devices[id]["attributes"]["hvac_mode"] == "heat":
+        payload = json.dumps({
+          "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
+          "params" : {
+            "heatCelsius" : self.convert_temp_down(float(data["service_data"]["temperature"]), self.devices[id]["attributes"]["unit_of_measure"])
+            }
+          }, indent=4)
+        self.post_api(self.devices[id], payload)
 
   
   def post_api(self, device, payload):
@@ -266,4 +297,3 @@ class NESTAPI(hass.Hass):
     if json.loads(response.text.encode('utf8')) != {}:
       self.log(json.loads(response.text.encode('utf8'))["error"]["message"])
     self.update_devices(self.args)
-
