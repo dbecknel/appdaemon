@@ -92,7 +92,7 @@ class NESTAPI(hass.Hass):
         device["attributes"]["supported_features"]+=16
     except (Exception) as e:
       device["attributes"]["preset_mode"]=""
-      device["attributes"]["preset_modes"]=""
+      device["attributes"]["preset_modes"]=[""]
     #device["attributes"]["eco_min_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["heatCelsius"], device["attributes"]["unit_of_measure"])
     #device["attributes"]["eco_max_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["coolCelsius"], device["attributes"]["unit_of_measure"])
     device["attributes"]["hvac_modes"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["availableModes"]
@@ -164,6 +164,8 @@ class NESTAPI(hass.Hass):
     for id in data["service_data"]["entity_id"]:
       if (not self.devices[id]["attributes"]["supported_features"] & 2) and data["service_data"]["hvac_mode"] == "heat_cool":
         continue
+      if data["service_data"]["hvac_mode"] not in self.devices[id]["attributes"]["hvac_modes"]:
+        continue
       payload = json.dumps({
         'command' : 'sdm.devices.commands.ThermostatMode.SetMode',
         'params' : {
@@ -181,6 +183,8 @@ class NESTAPI(hass.Hass):
       data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
     for id in data["service_data"]["entity_id"]:
       if not self.devices[id]["attributes"]["supported_features"] & 16:
+        continue
+      if data["service_data"]["preset_mode"] not in self.devices[id]["attributes"]["preset_modes"]:
         continue
       if data["service_data"]["preset_mode"].lower() == "eco":
         payload = json.dumps({
