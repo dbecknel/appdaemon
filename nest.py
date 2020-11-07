@@ -162,6 +162,9 @@ class NESTAPI(hass.Hass):
     if type(data["service_data"]["entity_id"]) is not list:
       data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
     for id in data["service_data"]["entity_id"]:
+      if id not in self.devices:
+        self.log(id + " not in Nest devices")
+        continue
       if (not self.devices[id]["attributes"]["supported_features"] & 2) and data["service_data"]["hvac_mode"] == "heat_cool":
         continue
       if data["service_data"]["hvac_mode"] not in self.devices[id]["attributes"]["hvac_modes"]:
@@ -182,6 +185,9 @@ class NESTAPI(hass.Hass):
     if type(data["service_data"]["entity_id"]) is not list:
       data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
     for id in data["service_data"]["entity_id"]:
+      if id not in self.devices:
+        self.log(id + " not in Nest devices")
+        continue
       if not self.devices[id]["attributes"]["supported_features"] & 16:
         continue
       if data["service_data"]["preset_mode"] not in self.devices[id]["attributes"]["preset_modes"]:
@@ -206,6 +212,9 @@ class NESTAPI(hass.Hass):
       data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
     for id in data["service_data"]["entity_id"]:
       if not self.devices[id]["attributes"]["supported_features"] & 8:
+        continue
+      if id not in self.devices:
+        self.log(id + " not in Nest devices")
         continue
       if data["service_data"]["fan_mode"].lower() == "off":
         payload = json.dumps({
@@ -240,6 +249,9 @@ class NESTAPI(hass.Hass):
         }
       }, indent=4)
     for id in data["service_data"]["entity_id"]:
+      if id not in self.devices:
+        self.log(id + " not in Nest devices")
+        continue
       self.post_api(self.devices[id], payload)
     
   def set_temperature(self, data):
@@ -250,6 +262,9 @@ class NESTAPI(hass.Hass):
       data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
     payload={}
     for id in data["service_data"]["entity_id"]:
+      if id not in self.devices:
+        self.log(id + " not in Nest devices")
+        continue
       if "hvac_mode" in data["service_data"]:
         if (data["service_data"]["hvac_mode"] == "heat" or data["service_data"]["hvac_mode"] == "cool") and "temperature" not in data["service_data"]:
           continue
@@ -300,4 +315,7 @@ class NESTAPI(hass.Hass):
     response = requests.request("POST", url, headers = headers, data = payload)
     if json.loads(response.text.encode('utf8')) != {}:
       self.log(json.loads(response.text.encode('utf8'))["error"]["message"])
-    self.update_devices(self.args)
+      self.get_token(self.args)
+      self.post_api(device, payload)
+    else:
+      self.update_devices(self.args)
