@@ -47,7 +47,12 @@ class NESTAPI(hass.Hass):
       'Authorization': 'Bearer ' + self.access_token
     }
     response = requests.request("GET", url, headers=headers, data = payload)
-    devices = json.loads(response.text.encode('utf8'))["devices"]
+    if "devices" in json.loads(response.text.encode('utf8')):
+      devices = json.loads(response.text.encode('utf8'))["devices"]
+    else:
+      self.log("No devices returned, refreshing token")
+      self.get_token(self.args)
+      return
     for nest_device in devices:
       if "THERMOSTAT" in nest_device["type"]:
         device = self.parseThermostat(nest_device)
@@ -93,8 +98,6 @@ class NESTAPI(hass.Hass):
     except (Exception) as e:
       device["attributes"]["preset_mode"]=""
       device["attributes"]["preset_modes"]=[""]
-    #device["attributes"]["eco_min_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["heatCelsius"], device["attributes"]["unit_of_measure"])
-    #device["attributes"]["eco_max_temp"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.ThermostatEco"]["coolCelsius"], device["attributes"]["unit_of_measure"])
     device["attributes"]["hvac_modes"]=nest_device["traits"]["sdm.devices.traits.ThermostatMode"]["availableModes"]
     device["attributes"]["hvac_modes"]=[mode.lower().replace("heatcool", "heat_cool") for mode in device["attributes"]["hvac_modes"]]
     device["attributes"]["current_temperature"]=self.convert_temp_up(nest_device["traits"]["sdm.devices.traits.Temperature"]["ambientTemperatureCelsius"], device["attributes"]["unit_of_measure"])
