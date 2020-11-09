@@ -6,6 +6,7 @@ DEFAULT_HOST = "https://api.meraki.com/api/v1/"
 TIMESPAN = 2592000
 BLOCK = '102'
 ALLOW = '103'
+ALL = "switch.meraki_all"
 
 #
 # Meraki API App
@@ -50,11 +51,18 @@ class MerakiAPI(hass.Hass):
     counter=0
     num_meraki=len(meraki_devices)
     num_entities=0
+    device["attributes"]={}
+    device["id"]="All"
+    device["attributes"]["friendly_name"]="Meraki - All Devices"
+    device["attributes"]["entity_id"]=ALL
+    device["state"]="on"
+    self.devices[device["attributes"]["entity_id"]]=device
+    self.set_state(device["attributes"]["entity_id"], state = device["state"], attributes = device["attributes"])
     for meraki_device in meraki_devices:
       device = self.parseMerakiDevice(meraki_device)
       counter+=1
       num_entities=len(self.devices)
-      if counter % 5 == 0:
+      if counter % 10 == 0:
         self.log("Progress: MerakiAPI found %d devices, completed %d, and %d are of interest", num_meraki, counter, num_entities)
     self.log("Completd: MerakiAPI found %d devices, completed %d, and %d are of interest", num_meraki, counter, num_entities)
     
@@ -91,7 +99,10 @@ class MerakiAPI(hass.Hass):
   
   def update_known_devices(self, kwargs):
     for device in self.devices:
-      self.update_device(self.devices[device]["id"])
+      if device[id]=="All":
+        continue
+      else:
+        self.update_device(self.devices[device]["id"])
   
   def get_policy(self, device):
     policy_url = (self.host + "networks/" + self.netID + "/clients/" + device["id"] + "/policy")
@@ -128,9 +139,11 @@ class MerakiAPI(hass.Hass):
     self.parseMerakiDevice(meraki_device)
   
   def call_service(self,event_name,data, kwargs):
-    if not (data["domain"]=="switch" and "meraki_" in data["service_data"]["entity_id"]):
+    if "entity_id" not in data["service_data"] or data["domain"]!="switch":
       return
-    elif data["service"]=="turn_on":
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
+    if data["service"]=="turn_on":
       self.turn_on(data)
     elif data["service"]=="turn_off":
       self.turn_off(data)
@@ -139,20 +152,69 @@ class MerakiAPI(hass.Hass):
     
   def toggle(self, data):
     self.log("toggle")
-    id = data["service_data"]["entity_id"]
-    if self.devics[id]["state"]=="on":
-      self.turn_off(data)
-    else:
-      self.turn_on(data)
+    if "entity_id" not in data["service_data"]:
+      return
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
+    for id in data["service_data"]["entity_id"]:
+      if id not in self.devices:
+        continue
+      elif id==ALL:
+        continue
+      else:
+        if self.devics[id]["state"]=="on":
+          self.turn_off(data)
+        else:
+          self.turn_on(data)
   
   def turn_on(self, data):
     self.log("turn_on")
-    id = data["service_data"]["entity_id"]
-    self.set_policy(self.devices[id], ALLOW)
+    if "entity_id" not in data["service_data"]:
+      return
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
+    for id in data["service_data"]["entity_id"]:
+      if id not in self.devices:
+        continue
+      elif id==ALL:
+        self.allow_all()
+      else:
+        self.set_policy(self.devices[id], ALLOW)
     
   def turn_off(self, data):
     self.log("turn_off")
-    id = data["service_data"]["entity_id"]
-    self.set_policy(self.devices[id], BLOCK)
+    if "entity_id" not in data["service_data"]:
+      return
+    if type(data["service_data"]["entity_id"]) is not list:
+      data["service_data"]["entity_id"] = [data["service_data"]["entity_id"]]
+    for id in data["service_data"]["entity_id"]:
+      if id not in self.devices:
+        continue
+      elif id==ALL:
+        self.block_all()
+      else:
+        self.set_policy(self.devices[id], BLOCK)
     
-  
+  def block_all(self):
+    self.log("block_all")
+    data={}
+    data["service_data"]={}
+    data["service_data"]["entity_id"]=[]
+    for id in self.devices:
+      if id!=ALL:
+        data["service_data"]["entity_id"].append(id)
+    self.turn_off(data)
+    self.devices[ALL]["state"]="off"
+    
+    
+  def allow_all(self):
+    self.log("allow_all")
+    data={}
+    data["service_data"]={}
+    data["service_data"]["entity_id"]=[]
+    for id in self.devices:
+      if id!=ALL:
+        data["service_data"]["entity_id"].append(id)
+    self.turn_on(data)
+    self.devices[ALL]["state"]="on"
+    
