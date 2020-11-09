@@ -99,7 +99,7 @@ class MerakiAPI(hass.Hass):
   
   def update_known_devices(self, kwargs):
     for device in self.devices:
-      if device==All:
+      if device==ALL:
         continue
       else:
         self.update_device(self.devices[device])
