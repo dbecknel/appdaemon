@@ -102,7 +102,7 @@ class MerakiAPI(hass.Hass):
       if device==ALL:
         continue
       else:
-        self.update_device(self.devices[device])
+        self.update_device(self.devices[device]["id"])
   
   def get_policy(self, device):
     policy_url = (self.host + "networks/" + self.netID + "/clients/" + device["id"] + "/policy")
