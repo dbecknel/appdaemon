@@ -8,6 +8,8 @@ nest.py is my intial cut at getting my Home Assistant to work with the new Googl
 
 https://developers.google.com/nest/device-access/registration
 
+Make sure that you have at least one climate device already, or add 'climate:' to your configuration.yaml to ensure that the climate services are loaded.
+
 You will need to carefully follow the instruction on the above link to register for the API and setup an account in GCP.  Ulimately, you will need the Project ID from you Google Device Access Console and the Client ID, Client Secret, and the Refresh Token from registering your Nest device API with your GCP account.  Again, the link above has good instructions to do, but follow them carefully!!
 
 Best to have Postman downloaded to help and to test fire API calls to be sure your data artifacts are correct.
