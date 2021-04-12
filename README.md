@@ -2,6 +2,8 @@
 
 # NESTAPI - nest.py
 
+HASS has already integrated directly, this is no longer needed if you have already completed the integration process. This was a prototype that predated the full integration.
+
 Google API for NEST Apps for Appdaemon on HASSIO
 
 nest.py is my intial cut at getting my Home Assistant to work with the new Google API for Nest Thermostats.
